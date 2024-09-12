@@ -253,6 +253,7 @@
             food = new Food(gameBoard);
             
             updateScoreDisplay();
+            reticle.visible = false; // Skjul reticle når spillet starter
         }
 
         function updateGame() {
@@ -309,8 +310,18 @@
                 }
             }
 
-            updateGame();
+            if (gameStarted) {
+                updateSnakeDirection();
+                updateGame();
+            }
+
             renderer.render(scene, camera);
+        }
+
+        function updateSnakeDirection() {
+            if (gameStarted && controller) {
+                snake.changeDirection(controller.quaternion);
+            }
         }
 
         init();
