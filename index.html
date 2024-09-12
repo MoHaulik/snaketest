@@ -71,6 +71,9 @@
         <button id="startAR">Start AR</button>
     </div>
     <div id="info">Place the game in AR and use the controller to guide the snake!</div>
+    <div id="gameMessage" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0,0,0,0.7); color: white; padding: 20px; border-radius: 10px; font-size: 24px; z-index: 1000;">
+        Spillet er startet!
+    </div>
 
     <script>
         // Game classes
@@ -253,7 +256,17 @@
             food = new Food(gameBoard);
             
             updateScoreDisplay();
-            reticle.visible = false; // Skjul reticle når spillet starter
+            reticle.visible = false;
+
+            // Vis spilstartet besked
+            const gameMessage = document.getElementById('gameMessage');
+            gameMessage.style.display = 'block';
+            setTimeout(() => {
+                gameMessage.style.display = 'none';
+            }, 3000); // Beskeden forsvinder efter 3 sekunder
+
+            // Start spilloop
+            renderer.setAnimationLoop(gameLoop);
         }
 
         function updateGame() {
@@ -274,7 +287,12 @@
         }
 
         function updateScoreDisplay() {
-            document.getElementById('info').textContent = `Score: ${score}`;
+            const infoElement = document.getElementById('info');
+            infoElement.textContent = `Score: ${score}`;
+            infoElement.style.fontSize = '24px';
+            infoElement.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            infoElement.style.padding = '10px';
+            infoElement.style.borderRadius = '5px';
         }
 
         function endGame() {
@@ -310,11 +328,6 @@
                 }
             }
 
-            if (gameStarted) {
-                updateSnakeDirection();
-                updateGame();
-            }
-
             renderer.render(scene, camera);
         }
 
@@ -322,6 +335,14 @@
             if (gameStarted && controller) {
                 snake.changeDirection(controller.quaternion);
             }
+        }
+
+        function gameLoop(timestamp, frame) {
+            if (gameStarted) {
+                updateSnakeDirection();
+                updateGame();
+            }
+            render(timestamp, frame);
         }
 
         init();
