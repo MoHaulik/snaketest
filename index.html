@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebXR 3D Snake Game</title>
+    <title>WebXR Snake Game for Meta Quest 3</title>
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- WebXR Polyfill for broader device support -->
+    <!-- WebXR Polyfill for broader compatibility (optional) -->
     <script src="https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.min.js"></script>
     <style>
         body { 
@@ -21,7 +21,10 @@
             width: 100%; 
             text-align: center; 
             color: white; 
-            z-index: 10;
+            z-index: 1;
+            font-size: 24px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
         }
         #startScreen {
             position: fixed;
@@ -68,7 +71,7 @@
             transform: translate(-50%, -50%); 
             background-color: rgba(0,0,0,0.8); 
             color: white; 
-            padding: 30px; 
+            padding: 20px; 
             border-radius: 10px; 
             font-size: 24px; 
             z-index: 1000;
@@ -79,8 +82,8 @@
 <body>
     <!-- Start Screen -->
     <div id="startScreen">
-        <h1>WebXR 3D Snake Game</h1>
-        <p>Experience the classic Snake game in Augmented Reality!</p>
+        <h1>WebXR Snake Game</h1>
+        <p>Experience the classic Snake game in Augmented Reality on your Meta Quest 3!</p>
         <p><strong>How to Play:</strong></p>
         <ol>
             <li>Click "Start AR" to begin.</li>
@@ -93,27 +96,20 @@
         <button id="startAR">Start AR</button>
     </div>
 
-    <!-- Score Info -->
+    <!-- Score Display -->
     <div id="info">Score: 0</div>
 
-    <!-- Game Start Message -->
-    <div id="gameMessage">Game Started!</div>
+    <!-- Game Message -->
+    <div id="gameMessage">Game Over! Final Score: 0. Tap to restart.</div>
 
+    <!-- Three.js and Game Script -->
     <script>
-        // Ensure WebXR is supported
-        if ( 'xr' in navigator ) {
-            console.log('WebXR is supported!');
-        } else {
-            alert('WebXR not supported by your browser. Please use a compatible browser.');
-        }
-
         // Game Classes
         class Snake {
             constructor(gameBoard) {
                 this.gameBoard = gameBoard;
                 this.segments = [];
-                this.direction = new THREE.Vector3(1, 0, 0); // Initial direction: +X
-                this.speed = 0.05; // Movement speed per interval
+                this.direction = new THREE.Vector3(1, 0, 0);
                 this.initSnake();
             }
 
@@ -128,25 +124,26 @@
 
             move() {
                 const newHead = this.segments[0].clone();
-                newHead.position.add(this.direction.clone().multiplyScalar(this.speed));
+                newHead.position.add(this.direction.clone().multiplyScalar(0.05));
                 this.segments.unshift(newHead);
                 this.gameBoard.add(newHead);
-                // Remove the last segment to simulate movement
-                const removed = this.segments.pop();
-                this.gameBoard.remove(removed);
+                this.segments.pop().removeFromParent();
             }
 
             grow() {
-                const lastSegment = this.segments[this.segments.length - 1];
-                const newSegment = lastSegment.clone();
+                const newSegment = this.segments[this.segments.length - 1].clone();
                 this.segments.push(newSegment);
                 this.gameBoard.add(newSegment);
             }
 
-            changeDirection(newDirection) {
+            changeDirection(quaternion) {
+                const forward = new THREE.Vector3(0, 0, -1);
+                forward.applyQuaternion(quaternion);
+                forward.y = 0; // Restrict to horizontal plane
+                forward.normalize();
                 // Prevent the snake from reversing
-                if (this.direction.dot(newDirection) > -0.5) {
-                    this.direction.copy(newDirection);
+                if (this.direction.dot(forward) > -0.5) {
+                    this.direction.copy(forward);
                 }
             }
 
@@ -155,28 +152,23 @@
             }
 
             checkCollisionWithSelf() {
-                const headPos = this.segments[0].position;
                 for (let i = 1; i < this.segments.length; i++) {
-                    if (headPos.distanceTo(this.segments[i].position) < 0.05) {
+                    if (this.segments[0].position.distanceTo(this.segments[i].position) < 0.025) {
                         return true;
                     }
                 }
                 return false;
             }
 
-            checkCollisionWithWalls(boardSize) {
+            checkCollisionWithWalls() {
                 const head = this.segments[0].position;
-                return (
-                    Math.abs(head.x) > boardSize / 2 ||
-                    Math.abs(head.z) > boardSize / 2
-                );
+                return Math.abs(head.x) > 0.5 || Math.abs(head.z) > 0.5;
             }
         }
 
         class Food {
-            constructor(gameBoard, boardSize) {
+            constructor(gameBoard) {
                 this.gameBoard = gameBoard;
-                this.boardSize = boardSize;
                 this.food = this.createFood();
                 this.respawn();
             }
@@ -184,26 +176,18 @@
             createFood() {
                 const foodGeometry = new THREE.SphereGeometry(0.025, 16, 16);
                 const foodMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-                const foodMesh = new THREE.Mesh(foodGeometry, foodMaterial);
-                this.gameBoard.add(foodMesh);
-                return foodMesh;
+                const food = new THREE.Mesh(foodGeometry, foodMaterial);
+                this.gameBoard.add(food);
+                return food;
             }
 
-            respawn(snakeSegments = []) {
-                let validPosition = false;
-                let newX, newZ;
-                while (!validPosition) {
-                    newX = (Math.floor((Math.random() - 0.5) * 20)) * 0.05;
-                    newZ = (Math.floor((Math.random() - 0.5) * 20)) * 0.05;
-                    validPosition = true;
-                    for (let segment of snakeSegments) {
-                        if (new THREE.Vector3(newX, 0.025, newZ).distanceTo(segment.position) < 0.05) {
-                            validPosition = false;
-                            break;
-                        }
-                    }
-                }
-                this.food.position.set(newX, 0.025, newZ);
+            respawn() {
+                const range = 0.45; // Slightly inside the walls
+                this.food.position.set(
+                    (Math.random() - 0.5) * 2 * range,
+                    0.025,
+                    (Math.random() - 0.5) * 2 * range
+                );
             }
 
             get position() {
@@ -212,22 +196,21 @@
         }
 
         class GameBoard extends THREE.Group {
-            constructor(size = 1) {
+            constructor() {
                 super();
-                this.size = size;
                 this.createBoard();
             }
 
             createBoard() {
-                const boardGeometry = new THREE.PlaneGeometry(this.size, this.size);
-                const boardMaterial = new THREE.MeshPhongMaterial({ color: 0x333333, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
+                const boardGeometry = new THREE.PlaneGeometry(1, 1);
+                const boardMaterial = new THREE.MeshPhongMaterial({ color: 0x444444, side: THREE.DoubleSide });
                 const board = new THREE.Mesh(boardGeometry, boardMaterial);
                 board.rotateX(-Math.PI / 2);
                 this.add(board);
 
-                // Optional: Add grid lines for better visual guidance
-                const grid = new THREE.GridHelper(this.size, this.size * 10, 0x555555, 0x555555);
-                grid.rotateX(-Math.PI / 2);
+                // Add grid lines for better visual reference
+                const grid = new THREE.GridHelper(1, 10, 0x888888, 0x888888);
+                grid.rotation.x = -Math.PI / 2;
                 this.add(grid);
             }
         }
@@ -241,19 +224,14 @@
         let hitTestSourceRequested = false;
         let gameStarted = false;
         let score = 0;
-        let moveInterval;
-        const BOARD_SIZE = 1; // 1 meter square
+        let animationFrameId;
 
-        // Initialization Function
+        // Initialize the scene
         function init() {
-            // Scene
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x000000);
 
-            // Camera
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-            // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -261,59 +239,65 @@
             document.body.appendChild(renderer.domElement);
 
             // Lighting
-            const ambientLight = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
 
-            // Controller
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(0, 1, 0);
+            scene.add(directionalLight);
+
+            // Controller Setup
             controller = renderer.xr.getController(0);
             controller.addEventListener('select', onSelect);
             scene.add(controller);
 
             // Reticle for hit testing
             const reticleGeometry = new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2);
-            const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0x0fff0f, opacity: 0.75, transparent: true });
+            const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
             reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
             reticle.visible = false;
             scene.add(reticle);
 
-            // Start AR Button Event
+            // Start AR Button
             const button = document.getElementById('startAR');
             button.addEventListener('click', onStartAR);
 
-            // Handle Window Resize
+            // Window Resize Handler
             window.addEventListener('resize', onWindowResize, false);
         }
 
         // Start AR Session
         function onStartAR() {
-            navigator.xr.requestSession('immersive-ar', {
-                requiredFeatures: ['hit-test', 'local-floor']
-            }).then((session) => {
-                renderer.xr.setSession(session);
-                renderer.setAnimationLoop(render);
-                document.getElementById('startScreen').style.display = 'none';
-            }).catch((err) => {
-                console.error('Failed to start AR session:', err);
-            });
+            if (navigator.xr) {
+                navigator.xr.requestSession('immersive-ar', {
+                    requiredFeatures: ['hit-test', 'local-floor']
+                }).then((session) => {
+                    renderer.xr.setSession(session);
+                    renderer.setAnimationLoop(render);
+                    document.getElementById('startScreen').style.display = 'none';
+                }).catch(err => {
+                    alert('AR Session failed to start: ' + err);
+                });
+            } else {
+                alert('WebXR not supported by your browser.');
+            }
         }
 
-        // Window Resize Handler
+        // Handle Window Resize
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // Controller Select Event Handler
+        // Handle Controller Select Event
         function onSelect() {
             if (reticle.visible) {
                 if (!gameStarted) {
                     startGame();
                 } else {
-                    // Change direction based on controller's orientation
-                    const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(controller.quaternion).normalize();
-                    direction.y = 0; // Restrict to horizontal plane
-                    snake.changeDirection(direction);
+                    // Change snake direction based on controller orientation
+                    snake.changeDirection(controller.quaternion);
                 }
             }
         }
@@ -325,25 +309,47 @@
             updateScoreDisplay();
 
             // Initialize Game Board
-            gameBoard = new GameBoard(BOARD_SIZE);
+            gameBoard = new GameBoard();
             gameBoard.position.setFromMatrixPosition(reticle.matrix);
             gameBoard.quaternion.setFromRotationMatrix(reticle.matrix);
             scene.add(gameBoard);
 
             // Initialize Snake and Food
             snake = new Snake(gameBoard);
-            food = new Food(gameBoard, BOARD_SIZE);
+            food = new Food(gameBoard);
 
-            // Display Game Started Message
+            // Show Game Start Message
             showGameMessage('Game Started!');
 
-            // Start Snake Movement Interval
-            moveInterval = setInterval(() => {
-                if (gameStarted) {
-                    snake.move();
-                    checkCollisions();
-                }
-            }, 300); // Move every 300ms
+            // Start Game Loop
+            animationFrameId = renderer.setAnimationLoop(gameLoop);
+        }
+
+        // Game Loop
+        function gameLoop(timestamp, frame) {
+            if (gameStarted) {
+                updateSnakeDirection();
+                updateGame();
+            }
+            renderFrame(timestamp, frame);
+        }
+
+        // Update Game State
+        function updateGame() {
+            snake.move();
+
+            // Check for Food Collision
+            if (snake.checkCollisionWithFood(food)) {
+                food.respawn();
+                snake.grow();
+                score++;
+                updateScoreDisplay();
+            }
+
+            // Check for Collisions
+            if (snake.checkCollisionWithSelf() || snake.checkCollisionWithWalls()) {
+                endGame();
+            }
         }
 
         // Update Score Display
@@ -352,48 +358,28 @@
             infoElement.textContent = `Score: ${score}`;
         }
 
-        // Show Temporary Game Messages
+        // End the Game
+        function endGame() {
+            gameStarted = false;
+            showGameMessage(`Game Over! Final Score: ${score}. Tap to restart.`);
+            scene.remove(gameBoard);
+            snake = null;
+            food = null;
+            score = 0;
+        }
+
+        // Show Game Messages
         function showGameMessage(message) {
             const gameMessage = document.getElementById('gameMessage');
             gameMessage.textContent = message;
             gameMessage.style.display = 'block';
             setTimeout(() => {
                 gameMessage.style.display = 'none';
-            }, 2000);
+            }, 3000); // Hide after 3 seconds
         }
 
-        // Check for Collisions
-        function checkCollisions() {
-            // Collision with Food
-            if (snake.checkCollisionWithFood(food)) {
-                snake.grow();
-                score++;
-                updateScoreDisplay();
-                food.respawn(snake.segments);
-            }
-
-            // Collision with Self or Walls
-            if (snake.checkCollisionWithSelf() || snake.checkCollisionWithWalls(BOARD_SIZE)) {
-                endGame();
-            }
-        }
-
-        // End the Game
-        function endGame() {
-            gameStarted = false;
-            clearInterval(moveInterval);
-            showGameMessage(`Game Over! Final Score: ${score}`);
-            // Reset Game Board and Objects
-            scene.remove(gameBoard);
-            snake = null;
-            food = null;
-
-            // Allow restarting the game by showing the start screen again
-            document.getElementById('startScreen').style.display = 'flex';
-        }
-
-        // Render Loop
-        function render(timestamp, frame) {
+        // Render Frame
+        function renderFrame(timestamp, frame) {
             if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
@@ -423,7 +409,28 @@
             renderer.render(scene, camera);
         }
 
-        // Initialize the Game
+        // Update Snake Direction Based on Controller
+        function updateSnakeDirection() {
+            if (controller && snake) {
+                snake.changeDirection(controller.quaternion);
+            }
+        }
+
+        // Handle Restarting the Game
+        function handleRestart() {
+            if (!gameStarted) {
+                startGame();
+            }
+        }
+
+        // Event Listener for Restarting via Tap
+        window.addEventListener('select', () => {
+            if (!gameStarted && !reticle.visible) {
+                handleRestart();
+            }
+        });
+
+        // Initialize the Application
         init();
     </script>
 </body>
