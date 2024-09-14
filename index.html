@@ -224,7 +224,6 @@
         let hitTestSourceRequested = false;
         let gameStarted = false;
         let score = 0;
-        let animationFrameId;
 
         // Initialize the scene
         function init() {
@@ -273,7 +272,7 @@
                     requiredFeatures: ['hit-test', 'local-floor']
                 }).then((session) => {
                     renderer.xr.setSession(session);
-                    renderer.setAnimationLoop(render);
+                    renderer.setAnimationLoop(gameLoop); // Use gameLoop as the animation loop
                     document.getElementById('startScreen').style.display = 'none';
                 }).catch(err => {
                     alert('AR Session failed to start: ' + err);
@@ -321,8 +320,7 @@
             // Show Game Start Message
             showGameMessage('Game Started!');
 
-            // Start Game Loop
-            animationFrameId = renderer.setAnimationLoop(gameLoop);
+            // No need to setAnimationLoop again since it's already set to gameLoop
         }
 
         // Game Loop
@@ -331,7 +329,37 @@
                 updateSnakeDirection();
                 updateGame();
             }
-            renderFrame(timestamp, frame);
+            performHitTest(frame);
+            renderer.render(scene, camera);
+        }
+
+        // Perform Hit Testing and Update Reticle
+        function performHitTest(frame) {
+            if (frame) {
+                const referenceSpace = renderer.xr.getReferenceSpace();
+                const session = renderer.xr.getSession();
+
+                if (!hitTestSourceRequested) {
+                    session.requestReferenceSpace('viewer').then((refSpace) => {
+                        session.requestHitTestSource({ space: refSpace }).then((source) => {
+                            hitTestSource = source;
+                        });
+                    });
+                    hitTestSourceRequested = true;
+                }
+
+                if (hitTestSource) {
+                    const hitTestResults = frame.getHitTestResults(hitTestSource);
+                    if (hitTestResults.length) {
+                        const hit = hitTestResults[0];
+                        const pose = hit.getPose(referenceSpace);
+                        reticle.visible = true;
+                        reticle.matrix.fromArray(pose.transform.matrix);
+                    } else {
+                        reticle.visible = false;
+                    }
+                }
+            }
         }
 
         // Update Game State
@@ -378,37 +406,6 @@
             }, 3000); // Hide after 3 seconds
         }
 
-        // Render Frame
-        function renderFrame(timestamp, frame) {
-            if (frame) {
-                const referenceSpace = renderer.xr.getReferenceSpace();
-                const session = renderer.xr.getSession();
-
-                if (!hitTestSourceRequested) {
-                    session.requestReferenceSpace('viewer').then((refSpace) => {
-                        session.requestHitTestSource({ space: refSpace }).then((source) => {
-                            hitTestSource = source;
-                        });
-                    });
-                    hitTestSourceRequested = true;
-                }
-
-                if (hitTestSource) {
-                    const hitTestResults = frame.getHitTestResults(hitTestSource);
-                    if (hitTestResults.length) {
-                        const hit = hitTestResults[0];
-                        const pose = hit.getPose(referenceSpace);
-                        reticle.visible = true;
-                        reticle.matrix.fromArray(pose.transform.matrix);
-                    } else {
-                        reticle.visible = false;
-                    }
-                }
-            }
-
-            renderer.render(scene, camera);
-        }
-
         // Update Snake Direction Based on Controller
         function updateSnakeDirection() {
             if (controller && snake) {
@@ -424,11 +421,8 @@
         }
 
         // Event Listener for Restarting via Tap
-        window.addEventListener('select', () => {
-            if (!gameStarted && !reticle.visible) {
-                handleRestart();
-            }
-        });
+        // Using controller's select event instead of window's
+        // Remove the window.addEventListener('select') to prevent conflicts
 
         // Initialize the Application
         init();
