@@ -1,431 +1,247 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="da">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebXR Snake Game for Meta Quest 3</title>
-    <!-- Three.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- WebXR Polyfill for broader compatibility (optional) -->
-    <script src="https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.min.js"></script>
+    <title>Tekst Deling</title>
     <style>
-        body { 
-            margin: 0; 
-            font-family: Arial, sans-serif; 
-            overflow: hidden;
-            background-color: #000;
-        }
-        #info { 
-            position: absolute; 
-            top: 10px; 
-            width: 100%; 
-            text-align: center; 
-            color: white; 
-            z-index: 1;
-            font-size: 24px;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-        }
-        #startScreen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
+        body, html {
+            margin: 0;
+            padding: 0;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.85);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            color: white;
-            z-index: 1000;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e7eb 100%);
+            overflow: hidden;
+            flex-direction: column;
+            gap: 20px;
+            padding-top: 20px;
         }
-        #startScreen h1 { 
-            font-size: 3em; 
-            margin-bottom: 20px; 
+
+        #dashboard {
+            position: relative;
+            width: 80%;
+            max-width: 600px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-radius: 20px;
+            color: rgba(0, 0, 0, 0.8);
+            gap: 15px;
         }
-        #startScreen p { 
-            font-size: 1.2em; 
-            margin-bottom: 30px; 
-            text-align: center; 
-            max-width: 80%; 
+
+        .button-container {
+            width: 80%;
+            max-width: 600px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 20px;
+            gap: 10px;
         }
-        #startAR {
-            font-size: 1.2em;
-            padding: 15px 30px;
-            background-color: #4CAF50;
-            color: white;
+
+        .item {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 50px;
+            background: transparent;
+            color: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 10px;
+            outline: none;
+            resize: vertical;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 18px;
+            background: transparent;
+            color: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            outline: none;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: rgba(255, 255, 255, 0.6);
+            color: rgba(0, 0, 0, 0.8);
             border: none;
-            border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: background-color 0.2s, transform 0.2s;
         }
-        #startAR:hover { 
-            background-color: #45a049; 
+
+        button:hover {
+            background-color: rgba(255, 255, 255, 0.8);
+            transform: scale(1.05);
         }
-        #gameMessage {
-            display: none; 
-            position: fixed; 
-            top: 50%; 
-            left: 50%; 
-            transform: translate(-50%, -50%); 
-            background-color: rgba(0,0,0,0.8); 
-            color: white; 
-            padding: 20px; 
-            border-radius: 10px; 
-            font-size: 24px; 
-            z-index: 1000;
-            text-align: center;
+
+        #loading {
+            margin-top: 10px;
+            color: rgba(0, 0, 0, 0.8);
+            font-size: 16px;
+        }
+
+        @media (max-width: 480px) {
+            #dashboard, .button-container {
+                width: 90%;
+                padding: 15px;
+            }
+
+            textarea {
+                font-size: 16px;
+            }
+
+            input[type="text"] {
+                font-size: 16px;
+            }
+
+            button {
+                font-size: 14px;
+                padding: 8px 15px;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Start Screen -->
-    <div id="startScreen">
-        <h1>WebXR Snake Game</h1>
-        <p>Experience the classic Snake game in Augmented Reality on your Meta Quest 3!</p>
-        <p><strong>How to Play:</strong></p>
-        <ol>
-            <li>Click "Start AR" to begin.</li>
-            <li>Point your controller at a flat surface.</li>
-            <li>Press the trigger to place the game board.</li>
-            <li>Use the controller to guide the snake.</li>
-            <li>Collect red spheres to grow and increase your score.</li>
-            <li>Avoid collisions with walls and yourself.</li>
-        </ol>
-        <button id="startAR">Start AR</button>
+    <div id="dashboard">
+        <div class="item">
+            <input type="text" id="textName" placeholder="Navngiv din tekst">
+        </div>
+        <div class="item">
+            <textarea id="inputArea" placeholder="Indsæt din tekst her"></textarea>
+        </div>
     </div>
 
-    <!-- Score Display -->
-    <div id="info">Score: 0</div>
+    <div class="button-container">
+        <button onclick="saveText()">Gem tekst</button>
+        <button onclick="loadText()">Hent tekst</button>
+        <button onclick="copyToClipboard()">CTRL-C</button>
+        <button onclick="resetText()">Reset tekst</button>
+    </div>
 
-    <!-- Game Message -->
-    <div id="gameMessage">Game Over! Final Score: 0. Tap to restart.</div>
-
-    <!-- Three.js and Game Script -->
+    <!-- Firebase SDK (v9 and later) -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js"></script>
     <script>
-        // Game Classes
-        class Snake {
-            constructor(gameBoard) {
-                this.gameBoard = gameBoard;
-                this.segments = [];
-                this.direction = new THREE.Vector3(1, 0, 0);
-                this.initSnake();
-            }
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCMRcOMjKXjmmKFUqC7ODcPeOJHgo2TSxA",
+            authDomain: "copy2-39bdb.firebaseapp.com",
+            databaseURL: "https://copy2-39bdb-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "copy2-39bdb",
+            storageBucket: "copy2-39bdb.appspot.com",
+            messagingSenderId: "29412038999",
+            appId: "1:29412038999:web:b3518829aea67005f9c612",
+            measurementId: "G-8N87MT70CK"
+        };
 
-            initSnake() {
-                const snakeGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
-                const snakeMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-                const snakeHead = new THREE.Mesh(snakeGeometry, snakeMaterial);
-                snakeHead.position.set(0, 0.025, 0);
-                this.segments.push(snakeHead);
-                this.gameBoard.add(snakeHead);
-            }
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
-            move() {
-                const newHead = this.segments[0].clone();
-                newHead.position.add(this.direction.clone().multiplyScalar(0.05));
-                this.segments.unshift(newHead);
-                this.gameBoard.add(newHead);
-                this.segments.pop().removeFromParent();
-            }
+        // Function to show loading indicator
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
 
-            grow() {
-                const newSegment = this.segments[this.segments.length - 1].clone();
-                this.segments.push(newSegment);
-                this.gameBoard.add(newSegment);
-            }
+        // Function to hide loading indicator
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
 
-            changeDirection(quaternion) {
-                const forward = new THREE.Vector3(0, 0, -1);
-                forward.applyQuaternion(quaternion);
-                forward.y = 0; // Restrict to horizontal plane
-                forward.normalize();
-                // Prevent the snake from reversing
-                if (this.direction.dot(forward) > -0.5) {
-                    this.direction.copy(forward);
+        // Function to save text to Firebase
+        function saveText() {
+            showLoading();
+            const textName = document.getElementById('textName').value || "default";
+            const text = document.getElementById('inputArea').value;
+            database.ref('texts/' + textName).set({
+                text: text
+            }).then(() => {
+                alert("Tekst gemt som " + textName);
+            }).catch((error) => {
+                console.error("Fejl ved gemning af data:", error);
+            }).finally(() => {
+                hideLoading();
+            });
+        }
+
+        // Function to load text from Firebase
+        function loadText() {
+            showLoading();
+            const textName = document.getElementById('textName').value || "default";
+            const dbRef = database.ref();
+            dbRef.child('texts/' + textName).get().then((snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    document.getElementById('inputArea').value = data.text;
+                } else {
+                    alert("Ingen tekst fundet for " + textName);
                 }
-            }
-
-            checkCollisionWithFood(food) {
-                return this.segments[0].position.distanceTo(food.position) < 0.05;
-            }
-
-            checkCollisionWithSelf() {
-                for (let i = 1; i < this.segments.length; i++) {
-                    if (this.segments[0].position.distanceTo(this.segments[i].position) < 0.025) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
-            checkCollisionWithWalls() {
-                const head = this.segments[0].position;
-                return Math.abs(head.x) > 0.5 || Math.abs(head.z) > 0.5;
-            }
+            }).catch((error) => {
+                console.error("Fejl ved indhentning af data:", error);
+            }).finally(() => {
+                hideLoading();
+            });
         }
 
-        class Food {
-            constructor(gameBoard) {
-                this.gameBoard = gameBoard;
-                this.food = this.createFood();
-                this.respawn();
-            }
-
-            createFood() {
-                const foodGeometry = new THREE.SphereGeometry(0.025, 16, 16);
-                const foodMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-                const food = new THREE.Mesh(foodGeometry, foodMaterial);
-                this.gameBoard.add(food);
-                return food;
-            }
-
-            respawn() {
-                const range = 0.45; // Slightly inside the walls
-                this.food.position.set(
-                    (Math.random() - 0.5) * 2 * range,
-                    0.025,
-                    (Math.random() - 0.5) * 2 * range
-                );
-            }
-
-            get position() {
-                return this.food.position;
-            }
+        // Function to reset text
+        function resetText() {
+            document.getElementById('inputArea').value = "";
+            document.getElementById('textName').value = "";
         }
 
-        class GameBoard extends THREE.Group {
-            constructor() {
-                super();
-                this.createBoard();
-            }
-
-            createBoard() {
-                const boardGeometry = new THREE.PlaneGeometry(1, 1);
-                const boardMaterial = new THREE.MeshPhongMaterial({ color: 0x444444, side: THREE.DoubleSide });
-                const board = new THREE.Mesh(boardGeometry, boardMaterial);
-                board.rotateX(-Math.PI / 2);
-                this.add(board);
-
-                // Add grid lines for better visual reference
-                const grid = new THREE.GridHelper(1, 10, 0x888888, 0x888888);
-                grid.rotation.x = -Math.PI / 2;
-                this.add(grid);
-            }
-        }
-
-        // Game Variables
-        let camera, scene, renderer;
-        let controller;
-        let reticle;
-        let snake, food, gameBoard;
-        let hitTestSource = null;
-        let hitTestSourceRequested = false;
-        let gameStarted = false;
-        let score = 0;
-
-        // Initialize the scene
-        function init() {
-            scene = new THREE.Scene();
-
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.xr.enabled = true;
-            document.body.appendChild(renderer.domElement);
-
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambientLight);
-
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-            directionalLight.position.set(0, 1, 0);
-            scene.add(directionalLight);
-
-            // Controller Setup
-            controller = renderer.xr.getController(0);
-            controller.addEventListener('select', onSelect);
-            scene.add(controller);
-
-            // Reticle for hit testing
-            const reticleGeometry = new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2);
-            const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
-            reticle.visible = false;
-            scene.add(reticle);
-
-            // Start AR Button
-            const button = document.getElementById('startAR');
-            button.addEventListener('click', onStartAR);
-
-            // Window Resize Handler
-            window.addEventListener('resize', onWindowResize, false);
-        }
-
-        // Start AR Session
-        function onStartAR() {
-            if (navigator.xr) {
-                navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['hit-test', 'local-floor']
-                }).then((session) => {
-                    renderer.xr.setSession(session);
-                    renderer.setAnimationLoop(gameLoop); // Use gameLoop as the animation loop
-                    document.getElementById('startScreen').style.display = 'none';
+        // Function to copy text to clipboard
+        function copyToClipboard() {
+            const text = document.getElementById('inputArea').value;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert("Tekst kopieret til udklipsholderen!");
                 }).catch(err => {
-                    alert('AR Session failed to start: ' + err);
+                    console.error("Kunne ikke kopiere teksten: ", err);
                 });
             } else {
-                alert('WebXR not supported by your browser.');
-            }
-        }
-
-        // Handle Window Resize
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        // Handle Controller Select Event
-        function onSelect() {
-            if (reticle.visible) {
-                if (!gameStarted) {
-                    startGame();
-                } else {
-                    // Change snake direction based on controller orientation
-                    snake.changeDirection(controller.quaternion);
+                let textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-9999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    alert("Tekst kopieret til udklipsholderen!");
+                } catch (err) {
+                    console.error("Kunne ikke kopiere teksten: ", err);
                 }
+                document.body.removeChild(textArea);
             }
         }
-
-        // Start the Game
-        function startGame() {
-            gameStarted = true;
-            score = 0;
-            updateScoreDisplay();
-
-            // Initialize Game Board
-            gameBoard = new GameBoard();
-            gameBoard.position.setFromMatrixPosition(reticle.matrix);
-            gameBoard.quaternion.setFromRotationMatrix(reticle.matrix);
-            scene.add(gameBoard);
-
-            // Initialize Snake and Food
-            snake = new Snake(gameBoard);
-            food = new Food(gameBoard);
-
-            // Show Game Start Message
-            showGameMessage('Game Started!');
-
-            // No need to setAnimationLoop again since it's already set to gameLoop
-        }
-
-        // Game Loop
-        function gameLoop(timestamp, frame) {
-            if (gameStarted) {
-                updateSnakeDirection();
-                updateGame();
-            }
-            performHitTest(frame);
-            renderer.render(scene, camera);
-        }
-
-        // Perform Hit Testing and Update Reticle
-        function performHitTest(frame) {
-            if (frame) {
-                const referenceSpace = renderer.xr.getReferenceSpace();
-                const session = renderer.xr.getSession();
-
-                if (!hitTestSourceRequested) {
-                    session.requestReferenceSpace('viewer').then((refSpace) => {
-                        session.requestHitTestSource({ space: refSpace }).then((source) => {
-                            hitTestSource = source;
-                        });
-                    });
-                    hitTestSourceRequested = true;
-                }
-
-                if (hitTestSource) {
-                    const hitTestResults = frame.getHitTestResults(hitTestSource);
-                    if (hitTestResults.length) {
-                        const hit = hitTestResults[0];
-                        const pose = hit.getPose(referenceSpace);
-                        reticle.visible = true;
-                        reticle.matrix.fromArray(pose.transform.matrix);
-                    } else {
-                        reticle.visible = false;
-                    }
-                }
-            }
-        }
-
-        // Update Game State
-        function updateGame() {
-            snake.move();
-
-            // Check for Food Collision
-            if (snake.checkCollisionWithFood(food)) {
-                food.respawn();
-                snake.grow();
-                score++;
-                updateScoreDisplay();
-            }
-
-            // Check for Collisions
-            if (snake.checkCollisionWithSelf() || snake.checkCollisionWithWalls()) {
-                endGame();
-            }
-        }
-
-        // Update Score Display
-        function updateScoreDisplay() {
-            const infoElement = document.getElementById('info');
-            infoElement.textContent = `Score: ${score}`;
-        }
-
-        // End the Game
-        function endGame() {
-            gameStarted = false;
-            showGameMessage(`Game Over! Final Score: ${score}. Tap to restart.`);
-            scene.remove(gameBoard);
-            snake = null;
-            food = null;
-            score = 0;
-        }
-
-        // Show Game Messages
-        function showGameMessage(message) {
-            const gameMessage = document.getElementById('gameMessage');
-            gameMessage.textContent = message;
-            gameMessage.style.display = 'block';
-            setTimeout(() => {
-                gameMessage.style.display = 'none';
-            }, 3000); // Hide after 3 seconds
-        }
-
-        // Update Snake Direction Based on Controller
-        function updateSnakeDirection() {
-            if (controller && snake) {
-                snake.changeDirection(controller.quaternion);
-            }
-        }
-
-        // Handle Restarting the Game
-        function handleRestart() {
-            if (!gameStarted) {
-                startGame();
-            }
-        }
-
-        // Event Listener for Restarting via Tap
-        // Using controller's select event instead of window's
-        // Remove the window.addEventListener('select') to prevent conflicts
-
-        // Initialize the Application
-        init();
     </script>
 </body>
 </html>
